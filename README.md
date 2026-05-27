@@ -15,13 +15,13 @@ DFA-Based Tokenization: Custom deterministic finite automaton (DFA) built from s
 Twin-Buffer System: Optimized disk I/O using a 4KB chunked twin-buffer architecture, ensuring highly efficient character reading and double-retraction handling for overlapping operator prefixes.  
 Symbol Table: Integrated fast hash-table to manage language keywords and user-defined identifiers.
 
-2. Syntax Analyzer (Parser)
+3. Syntax Analyzer (Parser)
 LL(1) Predictive Parsing: A fast, table-driven pushdown automaton (PDA) that verifies the grammatical structure of the token stream.  
 Grammar Engineering: The provided language grammar was manually restructured (89 rules) to eliminate left-recursion and apply left-factoring, making it 100% LL(1) compliant.  
 Macro-Driven Architecture: Grammar rules are cleanly mapped into the parsing engine using custom C macros, bridging the gap between theoretical FIRST/FOLLOW sets and codebase implementation.  
 Panic-Mode Error Recovery: Instead of crashing on syntax errors, the parser uses synchronization sets (e.g., TK_END, TK_ENDWHILE, TK_SEM) to skip malformed tokens, recover the stack, and continue parsing to report multiple errors in a single pass.
 
-3. Parse Tree ADT (Abstract Syntax Tree Foundation)
+4. Parse Tree ADT (Abstract Syntax Tree Foundation)
 N-ary Tree Implementation: A robust tree data structure to represent the parsed grammar.  
 Advanced Traversals: Built-in support for Pre-order, Post-order, and Level-order (BFS) traversals.  
 Serialization & Visualization: Features the ability to serialize trees to disk, and print highly readable ASCII/Unicode box-drawn representations directly to the console for debugging.
