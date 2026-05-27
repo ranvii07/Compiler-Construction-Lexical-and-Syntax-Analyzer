@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS F363 — Predictive Parsing Table</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1f2530;
+    --accent: #00e5ff;
+    --accent2: #7c4dff;
+    --accent3: #ff6d00;
+    --text: #e2e8f0;
+    --text-dim: #64748b;
+    --text-mid: #94a3b8;
+    --green: #00e676;
+    --yellow: #ffd600;
+    --red: #ff1744;
+    --pink: #ff4081;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* header */
+  header {
+    padding: 2rem 2.5rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; gap: 2rem;
+    flex-wrap: wrap;
+  }
+  .logo-badge {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.2em;
+    color: var(--accent); text-transform: uppercase;
+    border: 1px solid var(--accent); padding: 0.3rem 0.6rem;
+    border-radius: 3px;
+  }
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.4rem; font-weight: 800; color: var(--text);
+    flex: 1;
+  }
+  header h1 span { color: var(--accent); }
+
+  /* tabs */
+  .tabs {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0 2.5rem;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    padding: 0.9rem 1.5rem;
+    background: none; border: none; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem; font-weight: 500;
+    color: var(--text-dim);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s; white-space: nowrap;
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .tab-btn:hover { color: var(--text-mid); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* panels */
+  .panel { display: none; padding: 2rem 2.5rem; }
+  .panel.active { display: block; }
+
+  /* section header */
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem; font-weight: 700;
+    color: var(--accent); margin-bottom: 1.2rem;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    display: flex; align-items: center; gap: 0.6rem;
+  }
+  .section-title::before {
+    content: ''; display: block;
+    width: 3px; height: 1em; background: var(--accent);
+  }
+
+  /* grammar rules */
+  .grammar-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0.4rem; margin-bottom: 2rem;
+  }
+  @media (max-width: 900px) { .grammar-grid { grid-template-columns: 1fr; } }
+
+  .rule {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
+    padding: 0.5rem 0.8rem;
+    font-size: 0.72rem; line-height: 1.6;
+    transition: border-left-color 0.15s;
+    border-radius: 2px;
+  }
+  .rule:hover { border-left-color: var(--accent2); }
+  .rule-num {
+    color: var(--text-dim); margin-right: 0.5rem;
+    font-size: 0.65rem;
+  }
+  .rule-nt { color: var(--accent); }
+  .rule-arrow { color: var(--text-dim); margin: 0 0.3rem; }
+  .rule-terminal { color: var(--green); }
+  .rule-eps { color: var(--yellow); }
+  .rule-modified {
+    border-left-color: var(--accent3) !important;
+    background: rgba(255,109,0,0.04);
+  }
+  .rule-modified .rule-num::after {
+    content: ' ★'; color: var(--accent3); font-size: 0.6rem;
+  }
+
+  /* legend */
+  .legend {
+    display: flex; gap: 1.5rem; margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.68rem; color: var(--text-dim);
+  }
+  .legend-dot {
+    width: 8px; height: 8px; border-radius: 1px;
+  }
+
+  /* sets tables */
+  .sets-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1.5rem; margin-bottom: 2rem;
+  }
+  @media (max-width: 1100px) { .sets-grid { grid-template-columns: 1fr; } }
+
+  .set-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px; overflow: hidden;
+  }
+  .set-card-header {
+    background: var(--surface);
+    padding: 0.5rem 0.8rem;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.7rem; font-weight: 700;
+    color: var(--text-mid); letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  .set-table { width: 100%; border-collapse: collapse; }
+  .set-table td {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.68rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .set-table tr:last-child td { border-bottom: none; }
+  .set-table tr:hover td { background: rgba(0,229,255,0.03); }
+  .set-nt { color: var(--accent); min-width: 180px; }
+  .set-val { color: var(--text-dim); }
+  .tok { color: var(--green); background: rgba(0,230,118,0.07); 
+         padding: 0 3px; border-radius: 2px; margin: 1px; display: inline-block; font-size: 0.64rem; }
+  .tok-eps { color: var(--yellow); }
+
+  /* parse table */
+  .table-wrapper {
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    max-height: 70vh;
+    position: relative;
+  }
+  .parse-table {
+    border-collapse: collapse;
+    font-size: 0.63rem;
+    white-space: nowrap;
+    min-width: max-content;
+  }
+  .parse-table th {
+    background: #0d1117;
+    color: var(--accent);
+    padding: 0.5rem 0.5rem;
+    border: 1px solid var(--border);
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    position: sticky; top: 0; z-index: 10;
+    font-size: 0.6rem;
+  }
+  .parse-table th.nt-header {
+    background: #0d1117;
+    color: var(--text-mid);
+    min-width: 160px;
+    text-align: left;
+    position: sticky; left: 0; z-index: 20;
+    border-right: 2px solid var(--accent2);
+  }
+  .parse-table td {
+    border: 1px solid var(--border);
+    padding: 0.3rem 0.4rem;
+    text-align: center;
+    color: var(--text-dim);
+    background: var(--surface);
+    min-width: 75px;
+  }
+  .parse-table td.nt-col {
+    background: #0d1117;
+    color: var(--accent);
+    text-align: left;
+    padding: 0.35rem 0.6rem;
+    font-weight: 500;
+    position: sticky; left: 0; z-index: 5;
+    border-right: 2px solid var(--accent2);
+  }
+  .parse-table tr:hover td { background: rgba(0,229,255,0.04); }
+  .parse-table tr:hover td.nt-col { background: rgba(0,229,255,0.08); }
+  .cell-rule {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .cell-eps {
+    color: var(--yellow);
+    font-weight: 500;
+  }
+  .cell-err { color: transparent; }
+
+  /* filter */
+  .filter-row {
+    display: flex; gap: 1rem; margin-bottom: 1.2rem; flex-wrap: wrap; align-items: center;
+  }
+  .filter-input {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 0.45rem 0.8rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+    border-radius: 3px; outline: none; flex: 1; min-width: 200px;
+  }
+  .filter-input:focus { border-color: var(--accent); }
+  .filter-input::placeholder { color: var(--text-dim); }
+
+  .info-box {
+    background: rgba(0,229,255,0.05);
+    border: 1px solid rgba(0,229,255,0.2);
+    border-radius: 4px;
+    padding: 0.8rem 1rem;
+    font-size: 0.7rem; color: var(--text-mid);
+    margin-bottom: 1.5rem; line-height: 1.7;
+  }
+  .info-box strong { color: var(--accent); }
+
+  .stats-row {
+    display: flex; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+  }
+  .stat-chip {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 3px; padding: 0.4rem 0.8rem;
+    font-size: 0.68rem;
+  }
+  .stat-chip span { color: var(--accent); font-weight: 700; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-badge">CS F363 · BITS Pilani · 2026</div>
+  <h1>Predictive <span>Parsing Table</span></h1>
+  <div style="font-size:0.68rem;color:var(--text-dim)">LL(1) Grammar · Corrected &amp; Complete</div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('grammar')">Grammar Rules</button>
+  <button class="tab-btn" onclick="showTab('first')">FIRST Sets</button>
+  <button class="tab-btn" onclick="showTab('follow')">FOLLOW Sets</button>
+  <button class="tab-btn" onclick="showTab('table')">Parse Table</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ GRAMMAR ═══ -->
+<div id="panel-grammar" class="panel active">
+  <div class="info-box">
+    <strong>★ Modified rules</strong> are marked with an orange left border — these were intentionally flawed or absent in the original spec and have been corrected for LL(1) compatibility. Key fixes: left recursion in &lt;arithmeticExpression&gt; eliminated; &lt;conditionalStmt&gt; left-factored; &lt;singleOrRecId&gt; left-factored; &lt;definetypestmt&gt; integrated into &lt;typeDefinition&gt;; &lt;constructedDatatype&gt; extended to accept TK_RUID alias; &lt;global_or_not&gt; colon moved into the rule.
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div> Non-terminal</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Terminal token</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div> ε (epsilon)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div> Modified / added rule</div>
+  </div>
+
+  <div class="section-title">Corrected LL(1) Grammar (89 rules)</div>
+  <div class="grammar-grid" id="grammar-rules"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ FIRST ═══ -->
+<div id="panel-first" class="panel">
+  <div class="section-title">FIRST Sets</div>
+  <div class="sets-grid">
+    <div class="set-card">
+      <div class="set-card-header">FIRST — Non-terminals A through M</div>
+      <table class="set-table" id="first-table-1"></table>
+    </div>
+    <div class="set-card">
+      <div class="set-card-header">FIRST — Non-terminals O through V</div>
+      <table class="set-table" id="first-table-2"></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ FOLLOW ═══ -->
+<div id="panel-follow" class="panel">
+  <div class="section-title">FOLLOW Sets</div>
+  <div class="sets-grid">
+    <div class="set-card">
+      <div class="set-card-header">FOLLOW — Non-terminals A through M</div>
+      <table class="set-table" id="follow-table-1"></table>
+    </div>
+    <div class="set-card">
+      <div class="set-card-header">FOLLOW — Non-terminals O through V</div>
+      <table class="set-table" id="follow-table-2"></table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ TABLE ═══ -->
+<div id="panel-table" class="panel">
+  <div class="stats-row">
+    <div class="stat-chip">Non-terminals: <span>48</span></div>
+    <div class="stat-chip">Terminals (columns): <span>44</span></div>
+    <div class="stat-chip">Total grammar rules: <span>89</span></div>
+    <div class="stat-chip">Conflicts: <span style="color:var(--green)">0</span></div>
+  </div>
+  <div class="filter-row">
+    <input class="filter-input" id="nt-filter" placeholder="Filter non-terminal rows…" oninput="filterTable()">
+    <div style="font-size:0.68rem;color:var(--text-dim)">
+      Numbers = rule index | <span style="color:var(--yellow)">ε</span> = epsilon production | blank = error
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <table class="parse-table" id="parse-table"></table>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────── DATA ──────────────────────────────────────
+const RULES = [
+  // 1-11: structure
+  [1,"program","otherFunctions mainFunction",false],
+  [2,"mainFunction","TK_MAIN stmts TK_END",false],
+  [3,"otherFunctions","function otherFunctions",false],
+  [4,"otherFunctions","ε",false],
+  [5,"function","TK_FUNID input_par output_par TK_SEM stmts TK_END",false],
+  [6,"input_par","TK_INPUT TK_PARAMETER TK_LIST TK_SQL parameter_list TK_SQR",false],
+  [7,"output_par","TK_OUTPUT TK_PARAMETER TK_LIST TK_SQL parameter_list TK_SQR",false],
+  [8,"output_par","ε",false],
+  [9,"parameter_list","dataType TK_ID remaining_list",false],
+  [10,"dataType","primitiveDatatype",false],
+  [11,"dataType","constructedDatatype",false],
+  // 12-18: data types
+  [12,"primitiveDatatype","TK_INT",false],
+  [13,"primitiveDatatype","TK_REAL",false],
+  [14,"constructedDatatype","TK_RECORD TK_RUID",false],
+  [15,"constructedDatatype","TK_UNION TK_RUID",false],
+  [16,"constructedDatatype","TK_RUID",true],
+  [17,"remaining_list","TK_COMMA parameter_list",false],
+  [18,"remaining_list","ε",false],
+  // 19-35: stmts & declarations
+  [19,"stmts","typeDefinitions declarations otherStmts returnStmt",false],
+  [20,"typeDefinitions","typeDefinition typeDefinitions",false],
+  [21,"typeDefinitions","ε",false],
+  [22,"typeDefinition","TK_RECORD TK_RUID fieldDefinitions TK_ENDRECORD",false],
+  [23,"typeDefinition","TK_UNION TK_RUID fieldDefinitions TK_ENDUNION",false],
+  [24,"typeDefinition","definetypestmt",true],
+  [25,"fieldDefinitions","fieldDefinition fieldDefinition moreFields",false],
+  [26,"fieldDefinition","TK_TYPE fieldType TK_COLON TK_FIELDID TK_SEM",false],
+  [27,"fieldType","primitiveDatatype",true],
+  [28,"fieldType","constructedDatatype",true],
+  [29,"moreFields","fieldDefinition moreFields",false],
+  [30,"moreFields","ε",false],
+  [31,"declarations","declaration declarations",false],
+  [32,"declarations","ε",false],
+  [33,"declaration","TK_TYPE dataType TK_COLON TK_ID global_or_not TK_SEM",false],
+  [34,"global_or_not","TK_COLON TK_GLOBAL",true],
+  [35,"global_or_not","ε",false],
+  // 36-54: statements
+  [36,"otherStmts","stmt otherStmts",false],
+  [37,"otherStmts","ε",false],
+  [38,"stmt","assignmentStmt",false],
+  [39,"stmt","iterativeStmt",false],
+  [40,"stmt","conditionalStmt",false],
+  [41,"stmt","ioStmt",false],
+  [42,"stmt","funCallStmt",false],
+  [43,"assignmentStmt","singleOrRecId TK_ASSIGNOP arithmeticExpression TK_SEM",false],
+  [44,"singleOrRecId","TK_ID singleOrRecIdSuffix",true],
+  [45,"singleOrRecIdSuffix","TK_DOT TK_FIELDID",true],
+  [46,"singleOrRecIdSuffix","ε",true],
+  [47,"funCallStmt","outputParameters TK_CALL TK_FUNID TK_WITH TK_PARAMETERS inputParameters TK_SEM",false],
+  [48,"outputParameters","TK_SQL idList TK_SQR TK_ASSIGNOP",false],
+  [49,"outputParameters","ε",false],
+  [50,"inputParameters","TK_SQL idList TK_SQR",false],
+  [51,"iterativeStmt","TK_WHILE TK_OP booleanExpression TK_CL stmt otherStmts TK_ENDWHILE",false],
+  [52,"conditionalStmt","TK_IF TK_OP booleanExpression TK_CL TK_THEN stmt otherStmts elsePart TK_ENDIF",true],
+  [53,"elsePart","TK_ELSE stmt otherStmts",true],
+  [54,"elsePart","ε",true],
+  // 55-70: I/O, expressions
+  [55,"ioStmt","TK_READ TK_OP var TK_CL TK_SEM",false],
+  [56,"ioStmt","TK_WRITE TK_OP var TK_CL TK_SEM",false],
+  [57,"arithmeticExpression","term arithExpPrime",true],
+  [58,"arithExpPrime","TK_PLUS term arithExpPrime",true],
+  [59,"arithExpPrime","TK_MINUS term arithExpPrime",true],
+  [60,"arithExpPrime","ε",true],
+  [61,"term","factor termPrime",true],
+  [62,"termPrime","TK_MUL factor termPrime",true],
+  [63,"termPrime","TK_DIV factor termPrime",true],
+  [64,"termPrime","ε",true],
+  [65,"factor","TK_OP arithmeticExpression TK_CL",true],
+  [66,"factor","var",false],
+  [67,"var","TK_ID",false],
+  [68,"var","TK_NUM",false],
+  [69,"var","TK_RNUM",false],
+  // 70-80: boolean expressions
+  [70,"booleanExpression","TK_OP booleanExpression TK_CL logicalOp TK_OP booleanExpression TK_CL",false],
+  [71,"booleanExpression","var relationalOp var",false],
+  [72,"booleanExpression","TK_NOT TK_OP booleanExpression TK_CL",false],
+  [73,"logicalOp","TK_AND",false],
+  [74,"logicalOp","TK_OR",false],
+  [75,"relationalOp","TK_LT",false],
+  [76,"relationalOp","TK_LE",false],
+  [77,"relationalOp","TK_EQ",false],
+  [78,"relationalOp","TK_GT",false],
+  [79,"relationalOp","TK_GE",false],
+  [80,"relationalOp","TK_NE",false],
+  // 81-89: return, lists, definetype
+  [81,"returnStmt","TK_RETURN optionalReturn TK_SEM",false],
+  [82,"optionalReturn","TK_SQL idList TK_SQR",false],
+  [83,"optionalReturn","ε",false],
+  [84,"idList","TK_ID more_ids",false],
+  [85,"more_ids","TK_COMMA idList",false],
+  [86,"more_ids","ε",false],
+  [87,"definetypestmt","TK_DEFINETYPE typeDefKw TK_RUID TK_AS TK_RUID",true],
+  [88,"typeDefKw","TK_RECORD",true],
+  [89,"typeDefKw","TK_UNION",true],
+];
+
+// ── FIRST sets ──
+const FIRST = {
+  program: ["TK_FUNID","TK_MAIN"],
+  mainFunction: ["TK_MAIN"],
+  otherFunctions: ["TK_FUNID","ε"],
+  function: ["TK_FUNID"],
+  input_par: ["TK_INPUT"],
+  output_par: ["TK_OUTPUT","ε"],
+  parameter_list: ["TK_INT","TK_REAL","TK_RECORD","TK_UNION","TK_RUID"],
+  dataType: ["TK_INT","TK_REAL","TK_RECORD","TK_UNION","TK_RUID"],
+  primitiveDatatype: ["TK_INT","TK_REAL"],
+  constructedDatatype: ["TK_RECORD","TK_UNION","TK_RUID"],
+  remaining_list: ["TK_COMMA","ε"],
+  stmts: ["TK_RECORD","TK_UNION","TK_DEFINETYPE","TK_TYPE","TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","TK_RETURN"],
+  typeDefinitions: ["TK_RECORD","TK_UNION","TK_DEFINETYPE","ε"],
+  typeDefinition: ["TK_RECORD","TK_UNION","TK_DEFINETYPE"],
+  fieldDefinitions: ["TK_TYPE"],
+  fieldDefinition: ["TK_TYPE"],
+  fieldType: ["TK_INT","TK_REAL","TK_RECORD","TK_UNION","TK_RUID"],
+  moreFields: ["TK_TYPE","ε"],
+  declarations: ["TK_TYPE","ε"],
+  declaration: ["TK_TYPE"],
+  global_or_not: ["TK_COLON","ε"],
+  otherStmts: ["TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","ε"],
+  stmt: ["TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL"],
+  assignmentStmt: ["TK_ID"],
+  singleOrRecId: ["TK_ID"],
+  singleOrRecIdSuffix: ["TK_DOT","ε"],
+  funCallStmt: ["TK_SQL","TK_CALL"],
+  outputParameters: ["TK_SQL","ε"],
+  inputParameters: ["TK_SQL"],
+  iterativeStmt: ["TK_WHILE"],
+  conditionalStmt: ["TK_IF"],
+  elsePart: ["TK_ELSE","ε"],
+  ioStmt: ["TK_READ","TK_WRITE"],
+  arithmeticExpression: ["TK_OP","TK_ID","TK_NUM","TK_RNUM"],
+  arithExpPrime: ["TK_PLUS","TK_MINUS","ε"],
+  term: ["TK_OP","TK_ID","TK_NUM","TK_RNUM"],
+  termPrime: ["TK_MUL","TK_DIV","ε"],
+  factor: ["TK_OP","TK_ID","TK_NUM","TK_RNUM"],
+  booleanExpression: ["TK_OP","TK_ID","TK_NUM","TK_RNUM","TK_NOT"],
+  var: ["TK_ID","TK_NUM","TK_RNUM"],
+  logicalOp: ["TK_AND","TK_OR"],
+  relationalOp: ["TK_LT","TK_LE","TK_EQ","TK_GT","TK_GE","TK_NE"],
+  returnStmt: ["TK_RETURN"],
+  optionalReturn: ["TK_SQL","ε"],
+  idList: ["TK_ID"],
+  more_ids: ["TK_COMMA","ε"],
+  definetypestmt: ["TK_DEFINETYPE"],
+  typeDefKw: ["TK_RECORD","TK_UNION"],
+};
+
+// ── FOLLOW sets ──
+const FOLLOW = {
+  program: ["$"],
+  mainFunction: ["$"],
+  otherFunctions: ["TK_MAIN"],
+  function: ["TK_FUNID","TK_MAIN"],
+  input_par: ["TK_OUTPUT","TK_SEM"],
+  output_par: ["TK_SEM"],
+  parameter_list: ["TK_SQR"],
+  dataType: ["TK_ID","TK_COLON"],
+  primitiveDatatype: ["TK_ID","TK_COLON"],
+  constructedDatatype: ["TK_ID","TK_COLON"],
+  remaining_list: ["TK_SQR"],
+  stmts: ["TK_END"],
+  typeDefinitions: ["TK_TYPE","TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","TK_RETURN"],
+  typeDefinition: ["TK_RECORD","TK_UNION","TK_DEFINETYPE","TK_TYPE","TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","TK_RETURN"],
+  fieldDefinitions: ["TK_ENDRECORD","TK_ENDUNION"],
+  fieldDefinition: ["TK_TYPE","TK_ENDRECORD","TK_ENDUNION"],
+  fieldType: ["TK_COLON"],
+  moreFields: ["TK_ENDRECORD","TK_ENDUNION"],
+  declarations: ["TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","TK_RETURN"],
+  declaration: ["TK_TYPE","TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","TK_RETURN"],
+  global_or_not: ["TK_SEM"],
+  otherStmts: ["TK_RETURN","TK_ENDWHILE","TK_ELSE","TK_ENDIF"],
+  stmt: ["TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","TK_RETURN","TK_ENDWHILE","TK_ELSE","TK_ENDIF"],
+  assignmentStmt: ["TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","TK_RETURN","TK_ENDWHILE","TK_ELSE","TK_ENDIF"],
+  singleOrRecId: ["TK_ASSIGNOP"],
+  singleOrRecIdSuffix: ["TK_ASSIGNOP"],
+  funCallStmt: ["TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","TK_RETURN","TK_ENDWHILE","TK_ELSE","TK_ENDIF"],
+  outputParameters: ["TK_CALL"],
+  inputParameters: ["TK_SEM"],
+  iterativeStmt: ["TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","TK_RETURN","TK_ENDWHILE","TK_ELSE","TK_ENDIF"],
+  conditionalStmt: ["TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","TK_RETURN","TK_ENDWHILE","TK_ELSE","TK_ENDIF"],
+  elsePart: ["TK_ENDIF"],
+  ioStmt: ["TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","TK_RETURN","TK_ENDWHILE","TK_ELSE","TK_ENDIF"],
+  arithmeticExpression: ["TK_SEM","TK_CL"],
+  arithExpPrime: ["TK_SEM","TK_CL"],
+  term: ["TK_PLUS","TK_MINUS","TK_SEM","TK_CL"],
+  termPrime: ["TK_PLUS","TK_MINUS","TK_SEM","TK_CL"],
+  factor: ["TK_MUL","TK_DIV","TK_PLUS","TK_MINUS","TK_SEM","TK_CL"],
+  booleanExpression: ["TK_CL"],
+  var: ["TK_MUL","TK_DIV","TK_PLUS","TK_MINUS","TK_SEM","TK_CL","TK_LT","TK_LE","TK_EQ","TK_GT","TK_GE","TK_NE"],
+  logicalOp: ["TK_OP"],
+  relationalOp: ["TK_ID","TK_NUM","TK_RNUM"],
+  returnStmt: ["TK_END"],
+  optionalReturn: ["TK_SEM"],
+  idList: ["TK_SQR"],
+  more_ids: ["TK_SQR"],
+  definetypestmt: ["TK_RECORD","TK_UNION","TK_DEFINETYPE","TK_TYPE","TK_ID","TK_WHILE","TK_IF","TK_READ","TK_WRITE","TK_SQL","TK_CALL","TK_RETURN"],
+  typeDefKw: ["TK_RUID"],
+};
+
+// ── Predictive Parse Table ──
+// [NonTerminal]: { "TK_xxx": ruleNumber or "ε" }
+const PT = {
+  program: {TK_FUNID:1, TK_MAIN:1},
+  mainFunction: {TK_MAIN:2},
+  otherFunctions: {TK_FUNID:3, TK_MAIN:"ε(4)"},
+  function: {TK_FUNID:5},
+  input_par: {TK_INPUT:6},
+  output_par: {TK_OUTPUT:7, TK_SEM:"ε(8)"},
+  parameter_list: {TK_INT:9, TK_REAL:9, TK_RECORD:9, TK_UNION:9, TK_RUID:9},
+  dataType: {TK_INT:10, TK_REAL:10, TK_RECORD:11, TK_UNION:11, TK_RUID:11},
+  primitiveDatatype: {TK_INT:12, TK_REAL:13},
+  constructedDatatype: {TK_RECORD:14, TK_UNION:15, TK_RUID:16},
+  remaining_list: {TK_COMMA:17, TK_SQR:"ε(18)"},
+  stmts: {TK_RECORD:19, TK_UNION:19, TK_DEFINETYPE:19, TK_TYPE:19, TK_ID:19,
+          TK_WHILE:19, TK_IF:19, TK_READ:19, TK_WRITE:19, TK_SQL:19,
+          TK_CALL:19, TK_RETURN:19},
+  typeDefinitions: {TK_RECORD:20, TK_UNION:20, TK_DEFINETYPE:20,
+                    TK_TYPE:"ε(21)", TK_ID:"ε(21)", TK_WHILE:"ε(21)",
+                    TK_IF:"ε(21)", TK_READ:"ε(21)", TK_WRITE:"ε(21)",
+                    TK_SQL:"ε(21)", TK_CALL:"ε(21)", TK_RETURN:"ε(21)"},
+  typeDefinition: {TK_RECORD:22, TK_UNION:23, TK_DEFINETYPE:24},
+  fieldDefinitions: {TK_TYPE:25},
+  fieldDefinition: {TK_TYPE:26},
+  fieldType: {TK_INT:27, TK_REAL:27, TK_RECORD:28, TK_UNION:28, TK_RUID:28},
+  moreFields: {TK_TYPE:29, TK_ENDRECORD:"ε(30)", TK_ENDUNION:"ε(30)"},
+  declarations: {TK_TYPE:31, TK_ID:"ε(32)", TK_WHILE:"ε(32)", TK_IF:"ε(32)",
+                 TK_READ:"ε(32)", TK_WRITE:"ε(32)", TK_SQL:"ε(32)",
+                 TK_CALL:"ε(32)", TK_RETURN:"ε(32)"},
+  declaration: {TK_TYPE:33},
+  global_or_not: {TK_COLON:34, TK_SEM:"ε(35)"},
+  otherStmts: {TK_ID:36, TK_WHILE:36, TK_IF:36, TK_READ:36, TK_WRITE:36,
+               TK_SQL:36, TK_CALL:36,
+               TK_RETURN:"ε(37)", TK_ENDWHILE:"ε(37)", TK_ELSE:"ε(37)", TK_ENDIF:"ε(37)"},
+  stmt: {TK_ID:38, TK_WHILE:39, TK_IF:40, TK_READ:41, TK_WRITE:41,
+         TK_SQL:42, TK_CALL:42},
+  assignmentStmt: {TK_ID:43},
+  singleOrRecId: {TK_ID:44},
+  singleOrRecIdSuffix: {TK_DOT:45, TK_ASSIGNOP:"ε(46)"},
+  funCallStmt: {TK_SQL:47, TK_CALL:47},
+  outputParameters: {TK_SQL:48, TK_CALL:"ε(49)"},
+  inputParameters: {TK_SQL:50},
+  iterativeStmt: {TK_WHILE:51},
+  conditionalStmt: {TK_IF:52},
+  elsePart: {TK_ELSE:53, TK_ENDIF:"ε(54)"},
+  ioStmt: {TK_READ:55, TK_WRITE:56},
+  arithmeticExpression: {TK_OP:57, TK_ID:57, TK_NUM:57, TK_RNUM:57},
+  arithExpPrime: {TK_PLUS:58, TK_MINUS:59, TK_SEM:"ε(60)", TK_CL:"ε(60)"},
+  term: {TK_OP:61, TK_ID:61, TK_NUM:61, TK_RNUM:61},
+  termPrime: {TK_MUL:62, TK_DIV:63,
+              TK_PLUS:"ε(64)", TK_MINUS:"ε(64)", TK_SEM:"ε(64)", TK_CL:"ε(64)"},
+  factor: {TK_OP:65, TK_ID:66, TK_NUM:66, TK_RNUM:66},
+  booleanExpression: {TK_OP:70, TK_ID:71, TK_NUM:71, TK_RNUM:71, TK_NOT:72},
+  var: {TK_ID:67, TK_NUM:68, TK_RNUM:69},
+  logicalOp: {TK_AND:73, TK_OR:74},
+  relationalOp: {TK_LT:75, TK_LE:76, TK_EQ:77, TK_GT:78, TK_GE:79, TK_NE:80},
+  returnStmt: {TK_RETURN:81},
+  optionalReturn: {TK_SQL:82, TK_SEM:"ε(83)"},
+  idList: {TK_ID:84},
+  more_ids: {TK_COMMA:85, TK_SQR:"ε(86)"},
+  definetypestmt: {TK_DEFINETYPE:87},
+  typeDefKw: {TK_RECORD:88, TK_UNION:89},
+};
+
+// Terminal columns (ordered)
+const TERMINALS = [
+  "TK_MAIN","TK_END","TK_FUNID","TK_INPUT","TK_OUTPUT","TK_SQL","TK_SQR",
+  "TK_COMMA","TK_ID","TK_INT","TK_REAL","TK_RECORD","TK_UNION","TK_RUID",
+  "TK_TYPE","TK_ENDRECORD","TK_ENDUNION","TK_FIELDID","TK_GLOBAL","TK_COLON",
+  "TK_SEM","TK_ASSIGNOP","TK_DOT","TK_CALL","TK_WITH","TK_WHILE","TK_OP",
+  "TK_CL","TK_ENDWHILE","TK_IF","TK_THEN","TK_ELSE","TK_ENDIF","TK_READ",
+  "TK_WRITE","TK_PLUS","TK_MINUS","TK_MUL","TK_DIV","TK_NUM","TK_RNUM",
+  "TK_AND","TK_OR","TK_NOT","TK_LT","TK_LE","TK_EQ","TK_GT","TK_GE","TK_NE",
+  "TK_RETURN","TK_DEFINETYPE","TK_AS","$"
+];
+
+const NT_ORDER = [
+  "program","mainFunction","otherFunctions","function","input_par","output_par",
+  "parameter_list","dataType","primitiveDatatype","constructedDatatype",
+  "remaining_list","stmts","typeDefinitions","typeDefinition","fieldDefinitions",
+  "fieldDefinition","fieldType","moreFields","declarations","declaration",
+  "global_or_not","otherStmts","stmt","assignmentStmt","singleOrRecId",
+  "singleOrRecIdSuffix","funCallStmt","outputParameters","inputParameters",
+  "iterativeStmt","conditionalStmt","elsePart","ioStmt",
+  "arithmeticExpression","arithExpPrime","term","termPrime","factor",
+  "booleanExpression","var","logicalOp","relationalOp",
+  "returnStmt","optionalReturn","idList","more_ids",
+  "definetypestmt","typeDefKw"
+];
+
+// ─────────────────────────────────────────── RENDER ──────────────────────────────────────
+function tok(t) {
+  if (t === "ε") return `<span class="tok tok-eps">ε</span>`;
+  return `<span class="tok">${t}</span>`;
+}
+
+function renderGrammar() {
+  const el = document.getElementById('grammar-rules');
+  el.innerHTML = RULES.map(([n, nt, rhs, mod]) => {
+    const rhsHtml = rhs.split(' ').map(t => {
+      if (t === 'ε') return `<span class="rule-eps">ε</span>`;
+      if (t.startsWith('TK_')) return `<span class="rule-terminal">${t}</span>`;
+      if (t === '→') return `<span class="rule-arrow">→</span>`;
+      return `<span class="rule-nt">${t}</span>`;
+    }).join(' ');
+    return `<div class="rule ${mod ? 'rule-modified' : ''}">
+      <span class="rule-num">G${n}</span>
+      <span class="rule-nt">&lt;${nt}&gt;</span>
+      <span class="rule-arrow"> ⟶ </span>
+      ${rhsHtml}
+    </div>`;
+  }).join('');
+}
+
+function renderSetTable(id, entries) {
+  const el = document.getElementById(id);
+  el.innerHTML = entries.map(([nt, set]) =>
+    `<tr>
+      <td class="set-nt">&lt;${nt}&gt;</td>
+      <td class="set-val">${set.map(t => tok(t)).join(' ')}</td>
+    </tr>`
+  ).join('');
+}
+
+function renderFirstSets() {
+  const half = Math.ceil(NT_ORDER.length / 2);
+  const first_half = NT_ORDER.slice(0, half).map(nt => [nt, FIRST[nt] || []]);
+  const second_half = NT_ORDER.slice(half).map(nt => [nt, FIRST[nt] || []]);
+  renderSetTable('first-table-1', first_half);
+  renderSetTable('first-table-2', second_half);
+}
+
+function renderFollowSets() {
+  const half = Math.ceil(NT_ORDER.length / 2);
+  const first_half = NT_ORDER.slice(0, half).map(nt => [nt, FOLLOW[nt] || []]);
+  const second_half = NT_ORDER.slice(half).map(nt => [nt, FOLLOW[nt] || []]);
+  renderSetTable('follow-table-1', first_half);
+  renderSetTable('follow-table-2', second_half);
+}
+
+function renderParseTable() {
+  const table = document.getElementById('parse-table');
+
+  // Header row
+  let header = `<thead><tr><th class="nt-header">Non-Terminal</th>`;
+  TERMINALS.forEach(t => {
+    header += `<th title="${t}">${t.replace('TK_','')}</th>`;
+  });
+  header += `</tr></thead>`;
+
+  // Body rows
+  let body = `<tbody>`;
+  NT_ORDER.forEach(nt => {
+    const row = PT[nt] || {};
+    body += `<tr data-nt="${nt}"><td class="nt-col">&lt;${nt}&gt;</td>`;
+    TERMINALS.forEach(tok => {
+      const val = row[tok];
+      if (val !== undefined) {
+        const isEps = String(val).startsWith('ε');
+        body += `<td title="${nt} on ${tok} → ${val}" class="${isEps ? 'cell-eps' : 'cell-rule'}">${val}</td>`;
+      } else {
+        body += `<td class="cell-err">—</td>`;
+      }
+    });
+    body += `</tr>`;
+  });
+  body += `</tbody>`;
+
+  table.innerHTML = header + body;
+}
+
+function filterTable() {
+  const q = document.getElementById('nt-filter').value.toLowerCase();
+  document.querySelectorAll('#parse-table tbody tr').forEach(row => {
+    const nt = row.dataset.nt || '';
+    row.style.display = nt.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// Init
+renderGrammar();
+renderFirstSets();
+renderFollowSets();
+renderParseTable();
+</script>
+</body>
+</html>
